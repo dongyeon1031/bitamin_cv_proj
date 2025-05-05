@@ -17,6 +17,9 @@ import torchvision.transforms as T
 import kornia
 from PIL import Image
 
+from wildlife_tools.features import DeepFeatures
+import torch.nn.functional as F
+
 # 📁 경로 설정 (ROOT는 config.py에서 import됨)
 PROCESSED_DIR = os.path.join(ROOT, "processed")
 METADATA_PATH = os.path.join(ROOT, "metadata.csv")
@@ -109,6 +112,9 @@ def main():
     matcher_mega = build_megadescriptor(model=model, transform=transform, device=DEVICE)
     matcher_aliked = build_aliked(transform=transforms_aliked, device=DEVICE)
 
+    db_feats = matcher_mega.extractor(dataset_db)
+    db_feats = F.normalize(db_feats, dim=-1)
+
     # 4. Build fusion model and apply calibration
     fusion = build_wildfusion(matcher_aliked, matcher_mega, dataset_calib, dataset_calib)
 
@@ -120,21 +126,48 @@ def main():
     for dataset_name in dataset_query.metadata["dataset"].unique():
         query_subset = dataset_query.get_subset(dataset_query.metadata["dataset"] == dataset_name)
 
-        # Apply per-dataset strategy: adjust threshold for LynxID2025
-        threshold = THRESHOLD
-        if dataset_name == "LynxID2025":
-            # 시라소니 전략
-            threshold = 0.35
-        elif dataset_name == "SeaTurtleID2022":
-            # 바다거북 전략
-            threshold = 0.35
-        elif dataset_name == "SalamanderID2025":
-            # 도롱뇽 전략
-            threshold = 0.35
+        query_feats = matcher_mega.extractor(query_subset)
+        query_feats = F.normalize(query_feats, dim=-1)
+        
+        # Step 1. global similarity (MegaDescriptor)
+        # 기존 global similarity (Top-1 index 찾기용)
+        similarity_init = query_feats @ db_feats.T
+        top1_idx = similarity_init.argmax(dim=1)
 
-        similarity = fusion(query_subset, dataset_db, B=25)
-        pred_idx = similarity.argsort(axis=1)[:, -1]
-        pred_scores = similarity[np.arange(len(query_subset)), pred_idx]
+        # Query Expansion: query_feats + top1 db feature
+        qe_query_feats = query_feats.clone()
+        for i in range(len(query_feats)):
+            top1_db_feat = db_feats[top1_idx[i]]
+            qe_query_feats[i] = F.normalize(query_feats[i] + top1_db_feat, dim=-1)
+
+        # Query Expansion 적용한 feature로 다시 similarity 계산
+        similarity_global = qe_query_feats @ db_feats.T
+
+        # Step 2. Top-K index만 local matching
+        K = 25
+        topk_indices = similarity_global.argsort(axis=1)[:, -K:]
+
+        # Step 3. local similarity 계산 (Top-K 내에서만)
+        similarity_local = np.zeros_like(similarity_global)
+        for i in range(len(query_subset)):
+            q = query_subset[i]
+            db_topk = dataset_db.get_subset(topk_indices[i])
+            local_scores = matcher_aliked([q], db_topk)
+
+            # local_scores shape이 (1, K)일 수도, (K,)일 수도 있으므로 robust하게 처리
+            if local_scores.ndim == 2:
+                similarity_local[i, topk_indices[i]] = local_scores[0]
+            else:
+                similarity_local[i, topk_indices[i]] = local_scores
+
+
+        # Step 4. Fusion score = weighted sum
+        ALPHA = 0.7  # global의 비중이 더 큼
+        fusion_score = ALPHA * similarity_global + (1 - ALPHA) * similarity_local
+
+        # Step 5. 예측
+        pred_idx = fusion_score.argsort(axis=1)[:, -1]
+        pred_scores = fusion_score[np.arange(len(query_subset)), pred_idx]
 
         labels = dataset_db.labels_string
         predictions = labels[pred_idx].copy()
@@ -142,6 +175,7 @@ def main():
 
         predictions_all.extend(predictions)
         image_ids_all.extend(query_subset.metadata["image_id"])
+
 
     # 7. Save to CSV
     import pandas as pd
