@@ -1,4 +1,4 @@
-from config import ROOT, MEGAD_NAME, DEVICE, THRESHOLD
+from config import ROOT, PROCESSED_DIR, MEGAD_NAME, DEVICE, THRESHOLD
 from src.transforms import transform, transforms_aliked
 from src.utils import create_sample_submission
 from src.dataset import load_datasets
@@ -18,7 +18,7 @@ import kornia
 from PIL import Image
 
 # 📁 경로 설정 (ROOT는 config.py에서 import됨)
-PROCESSED_DIR = os.path.join(ROOT, "processed")
+#PROCESSED_DIR = os.path.join(ROOT, "processed")
 METADATA_PATH = os.path.join(ROOT, "metadata.csv")
 
 # ✨ CLAHE 적용 함수
@@ -83,6 +83,14 @@ def run_preprocessing():
         img_path = os.path.join(ROOT, row["path"])
         species_name = row["dataset"]
         image_id = row["image_id"]
+        split = row["split"]
+
+                # ✅ split 폴더 별 저장
+        save_dir = os.path.join(PROCESSED_DIR, split)
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{image_id}.png")
+        if os.path.exists(save_path):
+            continue
 
         try:
             img = Image.open(img_path).convert("RGB")
@@ -91,7 +99,6 @@ def run_preprocessing():
             continue
 
         processed_img = preprocess_image(img, species_name)
-        save_path = os.path.join(PROCESSED_DIR, f"{image_id}.png")
         processed_img.save(save_path)
 
         if idx % 500 == 0:
