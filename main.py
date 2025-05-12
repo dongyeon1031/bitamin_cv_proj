@@ -1,4 +1,4 @@
-from config import ROOT, MEGAD_NAME, DEVICE, THRESHOLD
+from config import ROOT, PROCESSED_DIR, MEGAD_NAME, DEVICE, THRESHOLD
 from src.transforms import transform, transforms_aliked
 from src.utils import create_sample_submission
 from src.dataset import load_datasets
@@ -7,6 +7,7 @@ from src.fusion import build_wildfusion
 
 import timm
 import numpy as np
+import argparse
 
 import os
 import pandas as pd
@@ -18,7 +19,7 @@ import kornia
 from PIL import Image
 
 # 📁 경로 설정 (ROOT는 config.py에서 import됨)
-PROCESSED_DIR = os.path.join(ROOT, "processed")
+#PROCESSED_DIR = os.path.join(ROOT, "processed")
 METADATA_PATH = os.path.join(ROOT, "metadata.csv")
 
 # ✨ CLAHE 적용 함수
@@ -83,6 +84,14 @@ def run_preprocessing():
         img_path = os.path.join(ROOT, row["path"])
         species_name = row["dataset"]
         image_id = row["image_id"]
+        split = row["split"]
+
+                # ✅ split 폴더 별 저장
+        save_dir = os.path.join(PROCESSED_DIR, split)
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{image_id}.png")
+        if os.path.exists(save_path):
+            continue
 
         try:
             img = Image.open(img_path).convert("RGB")
@@ -91,7 +100,6 @@ def run_preprocessing():
             continue
 
         processed_img = preprocess_image(img, species_name)
-        save_path = os.path.join(PROCESSED_DIR, f"{image_id}.png")
         processed_img.save(save_path)
 
         if idx % 500 == 0:
@@ -99,6 +107,12 @@ def run_preprocessing():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fusion", type=str, default="weighted")
+    parser.add_argument("--w1", type=float, default=0.6)
+    parser.add_argument("--w2", type=float, default=0.4)
+    args = parser.parse_args()
+
     # 1. Load the full dataset
     if not os.path.exists(PROCESSED_DIR):
         run_preprocessing()
@@ -112,7 +126,13 @@ def main():
     matcher_aliked = build_aliked(transform=transforms_aliked, device=DEVICE)
 
     # 4. Build fusion model and apply calibration
-    fusion = build_wildfusion(matcher_aliked, matcher_mega, dataset_calib, dataset_calib)
+    fusion = build_wildfusion(
+       matcher_aliked, matcher_mega,
+       dataset_calib, dataset_calib,
+       fusion_type=args.fusion,
+       w1=args.w1, w2=args.w2
+    )
+
 
     # 5. Compute predictions per query group (by dataset) but compare against full DB
     predictions_all = []
