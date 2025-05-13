@@ -7,7 +7,8 @@ import os
 # 동연 로컬 경로
 # ROOT = r"C:\Users\user\Desktop\kimdongyeon\CV_proj\bitamin_cv_proj\animal-clef-2025"
 # 보희 로컬 경로
-
+# # 보희 로컬 경로
+ROOT = r"C:\Users\family\Desktop\보희\대내외활동\대외\BIAamin\25 학기세션\컴퓨터비전 프로젝트\kaggle\animal-clef-2025"
 # 수아 로컬 경로
 
 # 채연 로컬 경로
