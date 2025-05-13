@@ -22,8 +22,8 @@ def salamander_orientation_transform(image, metadata):
 
 def load_datasets(root, calibration_size=100):
     # Apply rotation transform for SalamanderID2025 samples during dataset loading
-    dataset = AnimalCLEF2025(root, load_label=True, transform=salamander_orientation_transform)
-
+    dataset = AnimalCLEF2025(root, df=dataset.metadata, load_label=True, transform=salamander_orientation_transform)
+    
     dataset.metadata["path"] = dataset.metadata.apply(
         lambda row: os.path.join(PROCESSED_DIR, row["split"], f"{row['image_id']}.png"), axis=1
     )
