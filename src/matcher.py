@@ -25,7 +25,7 @@ def build_aliked(transform, device='cuda', batch_size=16):
         calibration=IsotonicCalibration()
     )
     
-def build_loftr(transform, device='cuda', batch_size=16):
+def build_loftr(transform, device='cuda'):
     return SimilarityPipeline(
         matcher=MatchLOFTR(device=device),
         extractor=None,  # LoFTR은 추출기 불필요
