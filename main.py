@@ -18,88 +18,9 @@ import kornia
 from PIL import Image
 from tqdm import tqdm
 
-# 📁 경로 설정 (ROOT는 config.py에서 import됨)
-from config import PROCESSED_DIR
-METADATA_PATH = os.path.join(ROOT, "metadata.csv")
-
-# ✨ CLAHE 적용 함수
-def apply_clahe(img):
-    img_np = np.array(img)
-    if len(img_np.shape) == 2:  # Grayscale
-        img_np = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(img_np)
-    else:  # RGB
-        lab = cv2.cvtColor(img_np, cv2.COLOR_RGB2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l)
-        limg = cv2.merge((cl, a, b))
-        img_np = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
-    return Image.fromarray(img_np)
-
-# ✨ Gamma correction
-def apply_gamma(img, gamma=1.0):
-    return TF.adjust_gamma(img, gamma)
-
-# ✨ Gaussian smoothing
-def apply_smoothing(img, sigma=1.0):
-    img_tensor = T.ToTensor()(img).unsqueeze(0)
-    smoothed = kornia.filters.gaussian_blur2d(img_tensor, (5, 5), (sigma, sigma))
-    return T.ToPILImage()(smoothed.squeeze(0))
-
-# ✨ 해상도 normalize (긴 변 384)
-def resize_longest_side(img, target_size=384):
-    w, h = img.size
-    if w >= h:
-        new_w = target_size
-        new_h = int(target_size * h / w)
-    else:
-        new_h = target_size
-        new_w = int(target_size * w / h)
-    return img.resize((new_w, new_h), Image.BILINEAR)
-
-# ✨ 종별 전처리 함수
-def preprocess_image(image, species_name):
-    if not isinstance(image, Image.Image):
-        raise ValueError("Input must be a PIL Image.")
-
-    image = resize_longest_side(image, target_size=384)
-
-    if species_name == "LynxID2025":
-        image = apply_gamma(image, gamma=0.8)
-        image = apply_clahe(image)
-    elif species_name == "SalamanderID2025":
-        image = apply_smoothing(image, sigma=1.0)
-    elif species_name == "SeaTurtleID2022":
-        image = apply_clahe(image)
-
-    return image
-
-# ✨ 전처리 실행 함수
-def run_preprocessing():
-    if not os.path.exists(PROCESSED_DIR):
-        os.makedirs(PROCESSED_DIR)
-
-    metadata = pd.read_csv(METADATA_PATH)
-    for idx, row in tqdm(metadata.iterrows(), total=len(metadata), desc="🔄 전처리 진행 중"):
-        img_path = os.path.join(ROOT, row["path"])
-        species_name = row["dataset"]
-        image_id = row["image_id"]
-
-        try:
-            img = Image.open(img_path).convert("RGB")
-        except Exception as e:
-            print(f"❌ Failed to load {img_path}: {e}")
-            continue
-
-        processed_img = preprocess_image(img, species_name)
-        save_path = os.path.join(PROCESSED_DIR, f"{image_id}.png")
-        processed_img.save(save_path)
-
 
 def main():
     # 1. Load the full dataset
-    if not os.path.exists(PROCESSED_DIR):
-        run_preprocessing()
     dataset, dataset_db, dataset_query, dataset_calib = load_datasets(ROOT)
 
     # 2. Load MegaDescriptor model (global descriptor backbone)
