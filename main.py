@@ -18,7 +18,7 @@ import kornia
 from PIL import Image
 
 # 📁 경로 설정 (ROOT는 config.py에서 import됨)
-PROCESSED_DIR = os.path.join(ROOT, "processed")
+from config import PROCESSED_DIR
 METADATA_PATH = os.path.join(ROOT, "metadata.csv")
 
 # ✨ CLAHE 적용 함수
