@@ -4,7 +4,7 @@ from wildlife_tools.similarity.wildfusion import SimilarityPipeline
 from wildlife_tools.features import DeepFeatures
 from wildlife_tools.features.local import AlikedExtractor
 from wildlife_tools.similarity.calibration import IsotonicCalibration
-from wildlife_tools.similarity.pairwise.loftr import MatchLoFTR
+from wildlife_tools.similarity.pairwise.loftr import MatchLOFTR
 
 '''
 MegaDescriptor, ALIKED matcher 각각 생성 + return
