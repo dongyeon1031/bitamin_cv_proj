@@ -4,6 +4,7 @@ from wildlife_tools.similarity.wildfusion import SimilarityPipeline
 from wildlife_tools.features import DeepFeatures
 from wildlife_tools.features.local import AlikedExtractor
 from wildlife_tools.similarity.calibration import IsotonicCalibration
+from wildlife_tools.similarity.pairwise.loftr import MatchLoFTR
 
 '''
 MegaDescriptor, ALIKED matcher 각각 생성 + return
@@ -20,6 +21,14 @@ def build_aliked(transform, device='cuda', batch_size=16):
     return SimilarityPipeline(
         matcher=MatchLightGlue(features='aliked', device=device, batch_size=batch_size),
         extractor=AlikedExtractor(),
+        transform=transform,
+        calibration=IsotonicCalibration()
+    )
+    
+def build_loftr(transform, device='cuda', batch_size=16):
+    return SimilarityPipeline(
+        matcher=MatchLoFTR(device=device, batch_size=batch_size),
+        extractor=None,  # LoFTR은 추출기 불필요
         transform=transform,
         calibration=IsotonicCalibration()
     )
