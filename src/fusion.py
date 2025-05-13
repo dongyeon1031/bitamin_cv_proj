@@ -5,9 +5,9 @@ WildFusion 객체 생성 + calibration 수행
 '''
 def build_wildfusion(matcher_aliked, matcher_loftr, matcher_mega, calibration_query, calibration_db):
     fusion = WildFusion(
-        calibrated_pipelines=[matcher_aliked, matcher_mega],
+        calibrated_pipelines=[matcher_aliked, matcher_loftr, matcher_mega],
         priority_pipeline=matcher_mega,
-        weights=[0.2, 0.3, 0.5]  # 가중치 조정 필요
+        weights=[0.2, 0.3, 0.5]  # ALIKED, LoFTR, MEGA 순서
     )
     fusion.fit_calibration(calibration_query, calibration_db)
     return fusion
