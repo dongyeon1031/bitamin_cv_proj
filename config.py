@@ -7,8 +7,8 @@ import os
 # 동연 로컬 경로
 # ROOT = r"C:\Users\user\Desktop\kimdongyeon\CV_proj\bitamin_cv_proj\animal-clef-2025"
 # 보희 로컬 경로
-# ROOT = "/kaggle/input/animal-clef-2025"  # 읽기 전용 데이터
-# PROCESSED_DIR = "/kaggle/working/processed"  # 전처리된 이미지 저장용
+ROOT = "/kaggle/input/animal-clef-2025"  # 읽기 전용 데이터
+PROCESSED_DIR = "/kaggle/working/processed"  # 전처리된 이미지 저장용
 
 # 수아 로컬 경로
 
