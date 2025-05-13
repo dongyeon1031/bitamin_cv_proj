@@ -2,6 +2,7 @@ from wildlife_datasets.datasets import AnimalCLEF2025
 import pandas as pd
 from torchvision.transforms import functional as TF
 from config import PROCESSED_DIR
+import os
 
 '''
 AnimalCLEF2025 로드하고, query/database/calibration 분리까지 담당
