@@ -14,6 +14,12 @@ transform = T.Compose([
 # ALIKED transforms (no normalize)
 transforms_aliked = T.Compose([
     T.Resize([512, 512]),
+    T.ToTensor()
+])
+
+# LoFTR transforms (1채널 grayscale)
+transforms_loftr = T.Compose([
+    T.Resize([512, 512]),
     T.Grayscale(num_output_channels=1),
     T.ToTensor()
 ])
