@@ -16,6 +16,7 @@ import torchvision.transforms.functional as TF
 import torchvision.transforms as T
 import kornia
 from PIL import Image
+from tqdm import tqdm
 
 # 📁 경로 설정 (ROOT는 config.py에서 import됨)
 from config import PROCESSED_DIR
@@ -79,7 +80,7 @@ def run_preprocessing():
         os.makedirs(PROCESSED_DIR)
 
     metadata = pd.read_csv(METADATA_PATH)
-    for idx, row in metadata.iterrows():
+    for idx, row in tqdm(metadata.iterrows(), total=len(metadata), desc="🔄 전처리 진행 중"):
         img_path = os.path.join(ROOT, row["path"])
         species_name = row["dataset"]
         image_id = row["image_id"]
@@ -93,9 +94,6 @@ def run_preprocessing():
         processed_img = preprocess_image(img, species_name)
         save_path = os.path.join(PROCESSED_DIR, f"{image_id}.png")
         processed_img.save(save_path)
-
-        if idx % 500 == 0:
-            print(f"✅ Processed {idx}/{len(metadata)} images")
 
 
 def main():
