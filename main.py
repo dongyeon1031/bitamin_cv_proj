@@ -2,7 +2,7 @@ from config import ROOT, MEGAD_NAME, DEVICE, THRESHOLD
 from src.transforms import transform, transforms_aliked
 from src.utils import create_sample_submission
 from src.dataset import load_datasets
-from src.matcher import build_megadescriptor, build_aliked
+from src.matcher import build_megadescriptor, build_aliked, build_loftr
 from src.fusion import build_wildfusion
 
 import timm
@@ -110,9 +110,10 @@ def main():
     # 3. Build matchers
     matcher_mega = build_megadescriptor(model=model, transform=transform, device=DEVICE)
     matcher_aliked = build_aliked(transform=transforms_aliked, device=DEVICE)
+    matcher_loftr = build_loftr(transform=transforms_aliked, device=DEVICE)
 
     # 4. Build fusion model and apply calibration
-    fusion = build_wildfusion(matcher_aliked, matcher_mega, dataset_calib, dataset_calib)
+    fusion = build_wildfusion(matcher_loftr, matcher_mega, dataset_calib, dataset_calib)
 
     # 5. Compute predictions per query group (by dataset) but compare against full DB
     predictions_all = []
