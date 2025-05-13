@@ -1,5 +1,5 @@
 from config import ROOT, MEGAD_NAME, DEVICE, THRESHOLD
-from src.transforms import transform, transforms_aliked
+from src.transforms import transform, transforms_aliked, transforms_loftr
 from src.utils import create_sample_submission
 from src.dataset import load_datasets
 from src.matcher import build_megadescriptor, build_aliked, build_loftr
