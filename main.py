@@ -29,7 +29,7 @@ def main():
     # 3. Build matchers
     matcher_mega = build_megadescriptor(model=model, transform=transform, device=DEVICE)
     matcher_aliked = build_aliked(transform=transforms_aliked, device=DEVICE)
-    matcher_loftr = build_loftr(transform=transforms_aliked, device=DEVICE)
+    matcher_loftr = build_loftr(transform=transforms_loftr, device=DEVICE)
 
     # 4. Build fusion model and apply calibration
     fusion = build_wildfusion(matcher_aliked, matcher_loftr, matcher_mega, dataset_calib, dataset_calib)
