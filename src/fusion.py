@@ -7,7 +7,7 @@ def build_wildfusion(matcher_aliked, matcher_mega, calibration_query, calibratio
     fusion = WildFusion(
         calibrated_pipelines=[matcher_aliked, matcher_mega],
         priority_pipeline=matcher_mega,
-        weights=[0.3, 0.7]  # ALIKED, MEGAD 각각 가중치
+        weights=[0.2, 0.3, 0.5]  # 가중치 조정 필요
     )
     fusion.fit_calibration(calibration_query, calibration_db)
     return fusion
