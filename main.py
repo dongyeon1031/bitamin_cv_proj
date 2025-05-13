@@ -111,7 +111,7 @@ def main():
     matcher_loftr = build_loftr(transform=transforms_aliked, device=DEVICE)
 
     # 4. Build fusion model and apply calibration
-    fusion = build_wildfusion(matcher_loftr, matcher_mega, dataset_calib, dataset_calib)
+    fusion = build_wildfusion(matcher_aliked, matcher_loftr, matcher_mega, dataset_calib, dataset_calib)
 
     # 5. Compute predictions per query group (by dataset) but compare against full DB
     predictions_all = []
