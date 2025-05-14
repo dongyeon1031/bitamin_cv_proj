@@ -1,6 +1,7 @@
 from wildlife_datasets.datasets import AnimalCLEF2025
 import pandas as pd
 from torchvision.transforms import functional as TF
+import os
 
 '''
 AnimalCLEF2025 로드하고, query/database/calibration 분리까지 담당
@@ -20,13 +21,19 @@ def salamander_orientation_transform(image, metadata):
 
 def load_datasets(root, calibration_size=100):
     # Apply rotation transform for SalamanderID2025 samples during dataset loading
-    dataset = AnimalCLEF2025(root, load_label=True, transform=salamander_orientation_transform)
+    metadata = pd.read_csv(os.path.join(root, "metadata.csv"))
+
+    dataset = AnimalCLEF2025(root, df=metadata, load_label=True, transform=salamander_orientation_transform)
 
     dataset_database = dataset.get_subset(dataset.metadata['split'] == 'database')
     dataset_query = dataset.get_subset(dataset.metadata['split'] == 'query')
 
-    dataset_calibration = AnimalCLEF2025(root, df=dataset_database.metadata[:calibration_size], load_label=True, transform=salamander_orientation_transform)
-
+    calib_meta = dataset_database.metadata[:calibration_size].copy()
+    
+    dataset_calibration = AnimalCLEF2025(
+        root, df=calib_meta, load_label=True, transform=salamander_orientation_transform
+    )
+    
     return dataset, dataset_database, dataset_query, dataset_calibration
 
 
