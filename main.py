@@ -37,7 +37,7 @@ def main():
     matcher_aliked = build_aliked(transform=transforms_aliked, device=DEVICE)
     matcher_disk = build_disk(transform=transforms_aliked, device=DEVICE)
     matcher_sp = build_superpoint(transform=transforms_aliked, device=DEVICE)
-    matcher_loftr = build_loftr(transform=transforms_aliked, device=DEVICE)
+    matcher_loftr = build_loftr(transform=transforms_loftr, device=DEVICE)
 
     # 4. Build fusion model and apply calibration
     from wildlife_tools.similarity.wildfusion import WildFusion
