@@ -2,9 +2,14 @@ from config import ROOT, MEGAD_NAME, DEVICE, THRESHOLD
 from src.transforms import transform, transforms_aliked, transforms_loftr
 from src.utils import create_sample_submission
 from src.dataset import load_datasets
-from src.matcher import build_megadescriptor, build_aliked, build_loftr
 from src.fusion import build_wildfusion
-from src.matcher import build_disk, build_superpoint, build_loftr
+from src.matcher import (
+    build_megadescriptor,
+    build_aliked,
+    build_disk,
+    build_superpoint,
+    build_loftr
+)
 
 import timm
 import numpy as np
