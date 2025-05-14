@@ -48,7 +48,7 @@ def build_superpoint(transform, device='cuda', batch_size=16):
 # LoFTR
 def build_loftr(transform, device='cuda', batch_size=16):
     return SimilarityPipeline(
-        matcher=MatchLoFTR(model_type='outdoor', device=device),
+        matcher=MatchLOFTR(model_type='outdoor', device=device),
         extractor=None,  # LoFTR 자체적으로 추출+매칭
         transform=transform,
         calibration=IsotonicCalibration()
