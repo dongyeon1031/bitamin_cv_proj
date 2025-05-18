@@ -1,15 +1,119 @@
-from config import ROOT, MEGAD_NAME, DEVICE, THRESHOLD
+from config import ROOT, PROCESSED_DIR, MEGAD_NAME, DEVICE, THRESHOLD
 from src.transforms import transform, transforms_aliked
 from src.utils import create_sample_submission
 from src.dataset import load_datasets
 from src.matcher import build_megadescriptor, build_aliked
-from src.fusion import build_wildfusion
+from src.fusion import build_weighted_fusion
 
 import timm
 import numpy as np
+import argparse
+
+import os
+import pandas as pd
+import numpy as np
+import cv2
+import torchvision.transforms.functional as TF
+import torchvision.transforms as T
+import kornia
+from PIL import Image
+
+# 📁 경로 설정 (ROOT는 config.py에서 import됨)
+#PROCESSED_DIR = os.path.join(ROOT, "processed")
+METADATA_PATH = os.path.join(ROOT, "metadata.csv")
+
+# ✨ CLAHE 적용 함수
+def apply_clahe(img):
+    img_np = np.array(img)
+    if len(img_np.shape) == 2:  # Grayscale
+        img_np = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(img_np)
+    else:  # RGB
+        lab = cv2.cvtColor(img_np, cv2.COLOR_RGB2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl, a, b))
+        img_np = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+    return Image.fromarray(img_np)
+
+# ✨ Gamma correction
+def apply_gamma(img, gamma=1.0):
+    return TF.adjust_gamma(img, gamma)
+
+# ✨ Gaussian smoothing
+def apply_smoothing(img, sigma=1.0):
+    img_tensor = T.ToTensor()(img).unsqueeze(0)
+    smoothed = kornia.filters.gaussian_blur2d(img_tensor, (5, 5), (sigma, sigma))
+    return T.ToPILImage()(smoothed.squeeze(0))
+
+# ✨ 해상도 normalize (긴 변 384)
+def resize_longest_side(img, target_size=384):
+    w, h = img.size
+    if w >= h:
+        new_w = target_size
+        new_h = int(target_size * h / w)
+    else:
+        new_h = target_size
+        new_w = int(target_size * w / h)
+    return img.resize((new_w, new_h), Image.BILINEAR)
+
+# ✨ 종별 전처리 함수
+def preprocess_image(image, species_name):
+    if not isinstance(image, Image.Image):
+        raise ValueError("Input must be a PIL Image.")
+
+    image = resize_longest_side(image, target_size=384)
+
+    if species_name == "LynxID2025":
+        image = apply_gamma(image, gamma=0.8)
+        image = apply_clahe(image)
+    elif species_name == "SalamanderID2025":
+        image = apply_smoothing(image, sigma=1.0)
+    elif species_name == "SeaTurtleID2022":
+        image = apply_clahe(image)
+
+    return image
+
+# ✨ 전처리 실행 함수
+def run_preprocessing():
+    if not os.path.exists(PROCESSED_DIR):
+        os.makedirs(PROCESSED_DIR)
+
+    metadata = pd.read_csv(METADATA_PATH)
+    for idx, row in metadata.iterrows():
+        img_path = os.path.join(ROOT, row["path"])
+        species_name = row["dataset"]
+        image_id = row["image_id"]
+        split = row["split"]
+
+                # ✅ split 폴더 별 저장
+        save_dir = os.path.join(PROCESSED_DIR, split)
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"{image_id}.png")
+        if os.path.exists(save_path):
+            continue
+
+        try:
+            img = Image.open(img_path).convert("RGB")
+        except Exception as e:
+            print(f"❌ Failed to load {img_path}: {e}")
+            continue
+
+        processed_img = preprocess_image(img, species_name)
+        processed_img.save(save_path)
+
+        if idx % 500 == 0:
+            print(f"✅ Processed {idx}/{len(metadata)} images")
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fusion", type=str, default="weighted")
+    parser.add_argument("--w1", type=float, default=0.6)
+    parser.add_argument("--w2", type=float, default=0.4)
+    parser.add_argument("--threshold", type=float, default=0.35)
+    args = parser.parse_args()
+
     # 1. Load the full dataset
     dataset, dataset_db, dataset_query, dataset_calib = load_datasets(ROOT)
 
@@ -21,7 +125,12 @@ def main():
     matcher_aliked = build_aliked(transform=transforms_aliked, device=DEVICE)
 
     # 4. Build fusion model and apply calibration
-    fusion = build_wildfusion(matcher_aliked, matcher_mega, dataset_calib, dataset_calib)
+    fusion = build_weighted_fusion(
+       matcher_aliked, matcher_mega,
+       dataset_calib, dataset_calib,
+       w1=args.w1, w2=args.w2
+    )
+
 
     # 5. Compute predictions per query group (by dataset) but compare against full DB
     predictions_all = []
@@ -32,7 +141,7 @@ def main():
         query_subset = dataset_query.get_subset(dataset_query.metadata["dataset"] == dataset_name)
 
         # Apply per-dataset strategy: adjust threshold for LynxID2025
-        threshold = THRESHOLD
+        threshold = args.threshold
         if dataset_name == "LynxID2025":
             # 시라소니 전략
             threshold = 0.35

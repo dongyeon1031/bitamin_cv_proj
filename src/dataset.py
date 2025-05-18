@@ -1,6 +1,8 @@
 from wildlife_datasets.datasets import AnimalCLEF2025
+from config import PROCESSED_DIR
 import pandas as pd
 from torchvision.transforms import functional as TF
+import os
 
 '''
 AnimalCLEF2025 로드하고, query/database/calibration 분리까지 담당
@@ -18,42 +20,60 @@ def salamander_orientation_transform(image, metadata):
         # 'top' orientation needs no change
     return image
 
+# ✅ 수정된 전체 로딩 함수
 def load_datasets(root, calibration_size=100):
-    # Apply rotation transform for SalamanderID2025 samples during dataset loading
-    dataset = AnimalCLEF2025(root, load_label=True, transform=salamander_orientation_transform)
+    metadata_path = os.path.join(root, "metadata.csv")
+    metadata = pd.read_csv(metadata_path)
 
-    dataset_database = dataset.get_subset(dataset.metadata['split'] == 'database')
+    # ✅ 전처리된 .png 파일 경로로 변경
+    metadata["path"] = metadata.apply(
+        lambda row: os.path.join(PROCESSED_DIR, row["split"], f"{row['image_id']}.png"), axis=1
+    )
+
+    # ✅ 수정된 metadata 사용하여 전체 dataset 생성
+    dataset = AnimalCLEF2025(root, df=metadata, load_label=True, transform=salamander_orientation_transform)
+
+    # ✅ split 기준으로 쪼갬
+    dataset_db = dataset.get_subset(dataset.metadata['split'] == 'database')
     dataset_query = dataset.get_subset(dataset.metadata['split'] == 'query')
 
-    dataset_calibration = AnimalCLEF2025(root, df=dataset_database.metadata[:calibration_size], load_label=True, transform=salamander_orientation_transform)
+    # ✅ calib: DB에서 일부 샘플링
+    calib_meta = metadata[metadata['split'] == 'database'].sample(
+        n=min(calibration_size, len(metadata[metadata['split'] == 'database'])),
+        random_state=42
+    )
+    calib_meta["path"] = calib_meta.apply(
+    lambda row: os.path.join(PROCESSED_DIR, "database", f"{row['image_id']}.png"), axis=1
+    )
+    dataset_calib = AnimalCLEF2025(root, df=calib_meta, load_label=True, transform=salamander_orientation_transform)
 
-    return dataset, dataset_database, dataset_query, dataset_calibration
+    return dataset, dataset_db, dataset_query, dataset_calib
 
-
-# Return database and query datasets split by species
+# ✅ 종별로 나눠서 불러오는 함수 (optional)
 def load_datasets_by_species(root, calibration_size=100):
-    dataset = AnimalCLEF2025(root, load_label=True)
+    metadata_path = os.path.join(root, "metadata.csv")
+    metadata = pd.read_csv(metadata_path)
+
+    # ✅ .png 경로 반영
+    metadata["path"] = metadata.apply(
+    lambda row: os.path.join(PROCESSED_DIR, row["split"], f"{row['image_id']}.png"), axis=1
+    )
+
 
     species_groups = {}
-    for dataset_name in dataset.metadata['dataset'].unique():
-        is_dataset = dataset.metadata['dataset'] == dataset_name
-        db_df = dataset.metadata[is_dataset & (dataset.metadata['split'] == 'database')]
-        print(f"[INFO] Dataset: {dataset_name} | Total DB samples: {len(db_df)}")
-        query_df = dataset.metadata[is_dataset & (dataset.metadata['split'] == 'query')]
+    for dataset_name in metadata['dataset'].unique():
+        is_dataset = metadata['dataset'] == dataset_name
+        db_df = metadata[is_dataset & (metadata['split'] == 'database')]
+        query_df = metadata[is_dataset & (metadata['split'] == 'query')]
 
-        '''
-        calib의 역할
-        * db에서 일정 개수만 샘플링한 부분집합
-        * 유사도 score가 어느 정도면 믿을 수 있는지 학습하기 위한 용도
-        * 현 코드에선 matcher의 점수 보정용으로 사용
-        * validation dataset과 유사한 역할
-        '''
+        print(f"[INFO] Dataset: {dataset_name} | DB: {len(db_df)}, Query: {len(query_df)}")
+
         calib_df = db_df.sample(n=min(calibration_size, len(db_df)), random_state=42)
         db_df = db_df.drop(calib_df.index)
-        dataset_db = AnimalCLEF2025(root, df=db_df, load_label=True)
-        dataset_query = AnimalCLEF2025(root, df=query_df, load_label=True)
 
-        dataset_calib = AnimalCLEF2025(root, df=calib_df, load_label=True)
+        dataset_db = AnimalCLEF2025(root, df=db_df, load_label=True, transform=salamander_orientation_transform)
+        dataset_query = AnimalCLEF2025(root, df=query_df, load_label=True, transform=salamander_orientation_transform)
+        dataset_calib = AnimalCLEF2025(root, df=calib_df, load_label=True, transform=salamander_orientation_transform)
 
         species_groups[dataset_name] = {
             'db': dataset_db,
